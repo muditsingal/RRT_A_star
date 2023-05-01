@@ -1,0 +1,5 @@
+https://ieeexplore.ieee.org/document/6935304
+J. Li, S. Liu, B. Zhang and X. Zhao, "RRT-A* Motion planning algorithm for non-holonomic mobile robot," 2014 Proceedings of the SICE Annual Conference (SICE), Sapporo, Japan, 2014, pp. 1833-1838, doi: 10.1109/SICE.2014.6935304.
+
+https://ieeexplore.ieee.org/document/9338597
+X. Jin, Z. Yan, H. Yang, Q. Wang and G. Yin, "A Goal-Biased RRT Path Planning Approach for Autonomous Ground Vehicle," 2020 4th CAA International Conference on Vehicular Control and Intelligence (CVCI), Hangzhou, China, 2020, pp. 743-746, doi: 10.1109/CVCI51460.2020.9338597.
