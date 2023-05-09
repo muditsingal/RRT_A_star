@@ -32,11 +32,21 @@ def obstacle(x,y):          # obstacle map
 	else:
 		return 0
 
-def sample_k_pts(k):
+def sample_k_pts(coords, k):
 	sample_pts = np.zeros([k,7], dtype=np.float32)
-	for j in range(k):
+	j = 0
+	while j < k:
 		rand_x, rand_y = rand_node()
-		sample_pts[j] = np.array([rand_x, rand_y, 0, 0, 0, 0, 0])
+		rand_pt_arr = np.array([rand_x, rand_y])
+		dist, index = shortest_distance(coords[:, :2], rand_pt_arr)
+		ctc_new = dist + coords[index, 4]
+
+		x_curr_node, y_curr_node = path(coords[index, :2], node_radius, rand_pt_arr)
+
+		if x_curr_node>=0 and y_curr_node>=0:
+			#sample_pts[j] = np.array([rand_x, rand_y, 0, index, ctc_new, 0, 0])
+			sample_pts[j] = np.array([x_curr_node, y_curr_node, 0, index, ctc_new, 0, 0])
+			j += 1
 
 	return sample_pts
 
@@ -47,7 +57,8 @@ def find_closest_points_list(coords, pt_list):
 		min_dist, min_idx = shortest_distance(coords, pt[0], pt[1])
 
 def path(center_coords, radius, rand_coords):
-	if np.sqrt(np.sum(np.square(center_coords - rand_coords))) < radius:
+	dist = np.sqrt(np.sum(np.square(center_coords - rand_coords)))
+	if dist < radius:
 		return -1,-1
 	dr = 1
 	r_curr = 0
@@ -68,22 +79,23 @@ def path(center_coords, radius, rand_coords):
 ##################################################### MAIN ################################
 initial_x_config = 50
 initial_y_config = 50
-final_x_config = 50
+final_x_config = 375
 final_y_config = 220
-k_size = 4
+k_size = 5
 start_ctc = 0.0
+weight = 2
 # Euclidean Distance
 # start_ctg = np.sqrt((initial_x_config-final_x_config)**2 + (initial_y_config-final_y_config)**2)
 
 # Manhattan Distance
 start_ctg = np.absolute(initial_x_config-final_x_config) + np.absolute(initial_y_config-final_y_config)
-start_tc = start_ctc + start_ctg
+start_tc = start_ctc + weight*start_ctg
 
 coords = np.empty((1, 7))   # x,y,node id, parent id
 coords = coords[1:]
-coords = np.vstack([coords,[initial_x_config, initial_y_config, 0, 0, start_ctc, start_ctg, start_tc]])
+coords = np.vstack([coords,[initial_x_config, initial_y_config, 0, -1, start_ctc, start_ctg, start_tc]])
 
-goal_threshold = 7
+goal_threshold = 4
 node_radius = 5
 x_curr_node = initial_x_config
 y_curr_node = initial_y_config
@@ -98,47 +110,49 @@ plt.plot(final_x_config, final_y_config, color='black', marker='o')
 ## obstacle space ##
 x, y = np.meshgrid(np.arange(0, 600), np.arange(0, 250))
 rect1 = (x>=100) & (x<=150) & (y>=0) & (y<=100)
-ax.fill(x[rect1], y[rect1], color='lightblue')
+ax.fill(x[rect1], y[rect1], color='black')
 rect2 = (x>=100) & (x<=150) & (y>=150) & (y<=250)
-ax.fill(x[rect2], y[rect2], color='lightblue')
+ax.fill(x[rect2], y[rect2], color='black')
 hex = (x >= (230)) & (x <= (370)) & ((x + 2*y) >= 395) & ((x - 2*y) <= 205) & ((x - 2*y) >= -105) & ((x + 2*y) <= 705)
-ax.fill(x[hex], y[hex], color='lightblue')
+ax.fill(x[hex], y[hex], color='black')
 tri = (y >= 2*x - (895)) & (y <= -2*x + (1145)) & (x >= 460)
-ax.fill(x[tri], y[tri], color='lightblue')
+ax.fill(x[tri], y[tri], color='black')
 boundary1 = (x<=0) 
-ax.fill(x[boundary1], y[boundary1], color='lightblue')
+ax.fill(x[boundary1], y[boundary1], color='black')
 boundary2 = (x>=600)
-ax.fill(x[boundary2], y[boundary2], color='lightblue')
+ax.fill(x[boundary2], y[boundary2], color='black')
 boundary3 = (y<=0)
-ax.fill(x[boundary3], y[boundary3], color='lightblue')
+ax.fill(x[boundary3], y[boundary3], color='black')
 boundary4 = (y>=250)
-ax.fill(x[boundary4], y[boundary4], color='lightblue')
+ax.fill(x[boundary4], y[boundary4], color='black')
 #################################################################
 
 ######################################### loop ###################################
 while np.sqrt((x_curr_node-final_x_config)**2 + (y_curr_node-final_y_config)**2) > goal_threshold:
-	j = 0
-	k_rand_pts = sample_k_pts(k_size)
-	
+	k_rand_pts = sample_k_pts(coords, k_size)
+	j=0
 	for row in k_rand_pts:
-		dist, index = shortest_distance(coords[:, :2], row[:2])
-		ctc_new = dist + coords[index, 4]
-		# ctg_new = np.sum(np.abs(coords[index, :2] - row[:2]))
-		ctg_new = np.sqrt(np.sum(np.square(coords[index, :2] - row[:2])))
+		ctc_new = row[4]
+		index = int(row[3])
+		# Euclidean Distance
+		# ctg_new = np.sqrt(np.sum(np.square(coords[index, :2] - row[:2])))
+		# Manhattan distance
+		ctg_new = np.sum(np.absolute(coords[index, :2] - row[:2]))
 		# print(ctg_new)
-		total_cost = ctc_new + 0.5*ctg_new
-		k_rand_pts[j, 3:7] = np.array([index, ctc_new, ctg_new, total_cost])
+		total_cost = ctc_new + weight*ctg_new
+		k_rand_pts[j, 5:7] = np.array([ctg_new, total_cost])
 		j += 1
 
 	min_total_dist_idx = np.argmin(k_rand_pts[:, 6])
 	best_new_node = k_rand_pts[min_total_dist_idx]
 	parent_idx = best_new_node[3]	
 
-	x_curr_node, y_curr_node = path(coords[index, :2], node_radius, best_new_node[:2])
+	x_curr_node = best_new_node[0]
+	y_curr_node = best_new_node[1]
 
-	if x_curr_node>=0 and y_curr_node>=0:
-		coords = np.vstack([coords, [x_curr_node, y_curr_node, node_id, parent_idx, best_new_node[4], best_new_node[5], best_new_node[6]]])
-		node_id +=1
+	coords = np.vstack([coords, [x_curr_node, y_curr_node, node_id, parent_idx, best_new_node[4], best_new_node[5], best_new_node[6]]])
+	node_id += 1
+
 #################################################################################
 
 ###################################### backtrack ####################
@@ -146,11 +160,18 @@ end_t = time.time()
 
 print("Planning time: ", end_t - start_t)
 
-node = coords[-1][3]
-# while (node):
-# 	print(node)
-# 	val = np.where(coords[:, 2] == node)[0]
-# 	node = coords[int(val)][3]
-# 	plt.plot(coords[int(val)][0], coords[int(val)][1], color='orange', marker='o')
+curr_idx = int(coords[-1][2])
+parent_idx = int(coords[-1][3])
+
+while parent_idx >= 0:
+	curr_node = coords[curr_idx+1]
+	parent_node = coords[parent_idx]
+	x_curr = curr_node[0]
+	y_curr = curr_node[1]
+	x_parent = parent_node[0]
+	y_parent = parent_node[1]
+	plt.plot([x_parent, x_curr], [y_parent, y_curr], color="red")
+	curr_idx = int(parent_node[2])
+	parent_idx = int(parent_node[3])
 
 plt.show()
